@@ -32,24 +32,52 @@ public class RelectExetor
 
     public final static ObjectMapper mapper = new ObjectMapper();
 
-    public Object executer(String req,String methodStr) throws ClassNotFoundException, InvocationTargetException, IllegalAccessException, IOException, InstantiationException
+    public Object executer(String req,String methodStr) throws Exception
     {
         Object methodresq=null;
         String[] reqs=req.split(";");
         String[] strs=methodStr.split("#");
         String className=strs[0];
-        String methodName=strs[1];
+        String methoddetail=strs[1];
+        String methodName=methoddetail.substring(0, methoddetail.indexOf("("));
+        String[] RequestParamsTyes =methoddetail.substring(methoddetail.indexOf("(")+1,methoddetail.indexOf(")")).split(",");
+        int methodTime=0;
+        try
+        {
+            reqs=req.split(";");
+            strs=methodStr.split("#");
+            className=strs[0];
+            methoddetail=strs[1];
+            methodName=methoddetail.substring(0, methoddetail.indexOf("("));
+            RequestParamsTyes =methoddetail.substring(methoddetail.indexOf("(")+1,methoddetail.indexOf(")")).split(",");
+        }catch (Exception e)
+        {
+            logger.error("入参错误请重试 Exception e",e);
+            throw new Exception();
+        }
         Class clazz=Class.forName(className);
         Object handleBean=SpringBeanUtils.getBean(clazz);
         if(handleBean==null)
         {
             handleBean=clazz.newInstance();
         }
-        Method[] mehtods=clazz.getDeclaredMethods();
-        for (Method method:mehtods)
+        Method[] methods=clazz.getDeclaredMethods();
+        for (Method method:methods)
         {
             if(methodName.equals(method.getName()))
             {
+                methodTime ++;
+            }
+        }
+        for (Method method:methods)
+        {
+            if(methodName.equals(method.getName()))
+            {
+                boolean isContinue=genericsHandler(method,methodTime,RequestParamsTyes);
+                if(isContinue)
+                {
+                    continue;
+                }
                 boolean isVoid=false;
                 if(method.getReturnType()==Void.TYPE)
                 {
@@ -85,11 +113,37 @@ public class RelectExetor
                 else
                 {
                     methodresq=method.invoke(handleBean,objs);
-                    System.out.println("methodresq= "+methodresq);
                 }
             }
         }
         return methodresq;
+    }
+
+    private boolean genericsHandler(Method method,int methodTime,String[] requestParamsTyes)
+    {
+        if(methodTime>1)
+        {
+            if(StringUtils.isEmpty(requestParamsTyes[0])&&method.getGenericParameterTypes().length>0)
+            {
+                return true;
+            }
+            if(!StringUtils.isEmpty(requestParamsTyes[0]))
+            {
+                if(requestParamsTyes.length!=method.getGenericParameterTypes().length)
+                {
+                    return true;
+                }
+                Type[] types = method.getGenericParameterTypes();
+                for(int i =0;i<types.length;i++ )
+                {
+                    if (!types[i].getTypeName().toLowerCase().contains(requestParamsTyes[i].toLowerCase()))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
     }
 
     /**

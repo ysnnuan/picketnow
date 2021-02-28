@@ -36,7 +36,7 @@ public class Controller
         return "Hello World!";
     }
 
-    @RequestMapping(value = "/execMethod",method = RequestMethod.POST)
+    @RequestMapping(value = "/mtest",method = RequestMethod.POST)
     @ResponseBody
     public ResponseApi execMethod(@RequestBody RequestExecMethod request) {
 
