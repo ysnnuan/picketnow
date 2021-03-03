@@ -1,6 +1,7 @@
 package com.nuan.autoconfigure.function;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.slf4j.Logger;
@@ -8,12 +9,13 @@ import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
 
 import java.io.IOException;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.Arrays;
 
 /**
  * @program: learn
@@ -26,30 +28,66 @@ public class RelectExetor
 {
     public RelectExetor()
     {
+        mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
     }
 
     private  final Logger logger = LoggerFactory.getLogger(RelectExetor.class);
 
     public final static ObjectMapper mapper = new ObjectMapper();
 
-    public Object executer(String req,String methodStr) throws ClassNotFoundException, InvocationTargetException, IllegalAccessException, IOException, InstantiationException
+    public Object executer(String req,String methodStr) throws Exception
     {
         Object methodresq=null;
-        String[] reqs=req.split(";");
-        String[] strs=methodStr.split("#");
-        String className=strs[0];
-        String methodName=strs[1];
+        Map<String,Object> maps=mapper.readValue(req, Map.class);
+        String[] strs=null;
+        String className=null;
+        String methoddetail=null;
+        String methodName=null;
+        String[] RequestParamsTyes =null;
+        int methodTime=0;
+        try
+        {
+            strs=methodStr.trim().split(" ");
+            className=strs[0];
+            methoddetail=strs[1];
+            methodName=methoddetail.substring(0, methoddetail.indexOf("("));
+            RequestParamsTyes =methoddetail.substring(methoddetail.indexOf("(")+1,methoddetail.indexOf(")")).split(",");
+        }catch (Exception e)
+        {
+            logger.error("入参错误请重试 Exception e",e);
+            throw new Exception();
+        }
         Class clazz=Class.forName(className);
         Object handleBean=SpringBeanUtils.getBean(clazz);
         if(handleBean==null)
         {
             handleBean=clazz.newInstance();
         }
-        Method[] mehtods=clazz.getDeclaredMethods();
-        for (Method method:mehtods)
+        Method[] methods=clazz.getDeclaredMethods();
+        for (Method method:methods)
         {
             if(methodName.equals(method.getName()))
             {
+                methodTime ++;
+                if(methodTime>1)
+                {
+                    break;
+                }
+            }
+        }
+        for (Method method:methods)
+        {
+            if(methodName.equals(method.getName()))
+            {
+                if(!method.isAccessible())
+                {
+                    method.setAccessible(true);
+                }
+                boolean isContinue=genericsHandler(method,methodTime,RequestParamsTyes);
+                if(isContinue)
+                {
+                    continue;
+                }
                 boolean isVoid=false;
                 if(method.getReturnType()==Void.TYPE)
                 {
@@ -60,21 +98,28 @@ public class RelectExetor
                 Object[] objs=new Object[paramTypes.length];
                 for ( int i=0;i<paramTypes.length;i++)
                 {
-                    Object obj=null;
-                    if(i+1>reqs.length)
+                    Object objvalue=maps.get(String.valueOf(i+1));
+                    String value=null;
+                    if(!StringUtils.isEmpty(objvalue))
                     {
-                        isHandleBasicTypes(type,reqs,objs,i);
+                        value= mapper.writeValueAsString(maps.get(String.valueOf(i+1)));
+                    }
+                    Object obj=null;
+                    List strlist =Arrays.asList(maps.keySet().toArray());
+                    if(i+1> Integer.parseInt((String)strlist.get(strlist.size()-1)))
+                    {
+                        isHandleBasicTypes(type,objs,i);
                         continue;
                     }
-                    if(StringUtils.isEmpty(reqs[i]))
+                    if(StringUtils.isEmpty(value))
                     {
-                        isHandleBasicTypes(type,reqs,objs,i);
+                        isHandleBasicTypes(type,objs,i);
                         if(objs[i]!=null&&(int)objs[i]==0)
                         {
                             continue;
                         }
                     }
-                    obj=builderRequestParam(i,reqs,paramTypes,type);
+                    obj=builderRequestParam(i,paramTypes,type,value);
                     objs[i]=obj;
                 }
                 if(isVoid)
@@ -85,48 +130,78 @@ public class RelectExetor
                 else
                 {
                     methodresq=method.invoke(handleBean,objs);
-                    System.out.println("methodresq= "+methodresq);
                 }
             }
         }
         return methodresq;
     }
 
+    private boolean genericsHandler(Method method,int methodTime,String[] requestParamsTyes)
+    {
+        if(methodTime>1)
+        {
+            if(StringUtils.isEmpty(requestParamsTyes[0])&&method.getGenericParameterTypes().length>0)
+            {
+                return true;
+            }
+            if(!StringUtils.isEmpty(requestParamsTyes[0]))
+            {
+                if(requestParamsTyes.length!=method.getGenericParameterTypes().length)
+                {
+                    return true;
+                }
+                Type[] types = method.getGenericParameterTypes();
+                for(int i =0;i<types.length;i++ )
+                {
+                    if (!types[i].getTypeName().toLowerCase().contains(requestParamsTyes[i].toLowerCase()))
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+        return false;
+    }
+
     /**
      * 将参数转换成方法中对应的具体参数并且赋值
      * @param i
-     * @param reqs
      * @param paramTypes
      * @param type
      * @return
      * @throws ClassNotFoundException
      * @throws JsonProcessingException
      */
-    private Object builderRequestParam(int i, String[] reqs, Class<?>[] paramTypes, Type[] type) throws IOException
+    private Object builderRequestParam(int i, Class<?>[] paramTypes, Type[] type,String value) throws IOException
     {
         Object obj=null;
         if(type[i].getTypeName().equals("java.lang.String"))
         {
-            obj=reqs[i];
+            obj=value;
         }
         else if (paramTypes[i].isArray())
         {
-            String[] szrequest=reqs[i].split(",");
+            String[] szrequest=value.split(",");
             obj=szrequest;
         }
         else if(Map.class.isAssignableFrom(paramTypes[i]))
         {
-            Map mapTypes=strParseObjectMap(reqs[i],type[i]);
+            Map mapTypes=strParseObjectMap(value,type[i]);
             obj=mapTypes;
         }
         else if(List.class.isAssignableFrom(paramTypes[i]))
         {
-            List list=strParseObjectList(reqs[i],type[i]);
+            List list=strParseObjectList(value,type[i]);
             obj=list;
+        }
+        else if(Set.class.isAssignableFrom(paramTypes[i]))
+        {
+            Set set=strParseObjectSet(value,type[i]);
+            obj=set;
         }
         else
         {
-            obj=mapper.readValue(reqs[i], paramTypes[i]);
+            obj=mapper.readValue(value, paramTypes[i]);
         }
         return obj;
     }
@@ -134,11 +209,10 @@ public class RelectExetor
     /**
      * 处理基础的8大数据类型中除char类型之外的在后面无参数传入但是有默认值的问题
      * @param type
-     * @param reqs
      * @param objs
      * @param i
      */
-    private void isHandleBasicTypes(Type[] type, String[] reqs, Object[] objs, int i)
+    private void isHandleBasicTypes(Type[] type, Object[] objs, int i)
     {
         if("int".equals(type[i].getTypeName()))
         {
@@ -226,7 +300,7 @@ public class RelectExetor
     }
 
     /**
-     * 将json字符串转成javabean
+     * 将json字符串转成javabean Map
      * @param req
      * @param type
      * @return
@@ -238,7 +312,7 @@ public class RelectExetor
     }
 
     /**
-     * 将json字符串转成javabean
+     * 将json字符串转成javabean List
      * @param req
      * @param type
      * @return
@@ -249,4 +323,16 @@ public class RelectExetor
         return mapper.readValue(req, javaType);
     }
 
+    /**
+     * 将json字符串转成javabean Set
+     * @param req
+     * @param type
+     * @return
+     * @throws IOException
+     */
+    private static Set strParseObjectSet(String req, Type type) throws IOException
+    {
+        JavaType javaType = getCollectionType(type);
+        return mapper.readValue(req, javaType);
+    }
 }
