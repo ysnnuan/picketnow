@@ -1,9 +1,13 @@
 package com.nuan.autoconfigure.function;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.nuan.autoconfigure.util.DateDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -11,11 +15,7 @@ import org.springframework.util.StringUtils;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Arrays;
+import java.util.*;
 
 /**
  * @program: learn
@@ -29,6 +29,16 @@ public class RelectExetor
     public RelectExetor()
     {
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        // 允许单引号字段名
+        mapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
+        // 设置时间转换所使用的默认时区
+        mapper.setTimeZone(TimeZone.getDefault());
+        // null不生成到json字符串中
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        // 全局日期反序列化配置
+        SimpleModule module = new SimpleModule();
+        module.addDeserializer(java.util.Date.class, new DateDeserializer(String.class));
+        mapper.registerModule(module);
     }
 
     private  final Logger logger = LoggerFactory.getLogger(RelectExetor.class);
