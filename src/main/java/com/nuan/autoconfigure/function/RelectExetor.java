@@ -74,17 +74,7 @@ public class RelectExetor
             handleBean=clazz.newInstance();
         }
         Method[] methods=clazz.getDeclaredMethods();
-        for (Method method:methods)
-        {
-            if(methodName.equals(method.getName()))
-            {
-                methodTime ++;
-                if(methodTime>1)
-                {
-                    break;
-                }
-            }
-        }
+        methodTime=isGenericsMethod(methods,methodName,methodTime);
         for (Method method:methods)
         {
             if(methodName.equals(method.getName()))
@@ -146,6 +136,35 @@ public class RelectExetor
         return methodresq;
     }
 
+    /**
+     * 判断同名方法计数器的值大于2为多态方法
+     * @param methods
+     * @param methodName
+     * @param methodTime
+     */
+    private int isGenericsMethod(Method[] methods, String methodName, int methodTime)
+    {
+        for (Method method:methods)
+        {
+            if(methodName.equals(method.getName()))
+            {
+                methodTime ++;
+                if(methodTime>1)
+                {
+                    break;
+                }
+            }
+        }
+        return methodTime;
+    }
+
+    /**
+     * 在多态中选出正确的方法
+     * @param method
+     * @param methodTime
+     * @param requestParamsTyes
+     * @return
+     */
     private boolean genericsHandler(Method method,int methodTime,String[] requestParamsTyes)
     {
         if(methodTime>1)
