@@ -1,9 +1,13 @@
 package com.nuan.autoconfigure.function;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.core.JsonParser;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.module.SimpleModule;
+import com.nuan.autoconfigure.util.DateDeserializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -11,11 +15,7 @@ import org.springframework.util.StringUtils;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.Arrays;
+import java.util.*;
 
 /**
  * @program: learn
@@ -29,6 +29,16 @@ public class RelectExetor
     public RelectExetor()
     {
         mapper.configure(DeserializationFeature.FAIL_ON_UNKNOWN_PROPERTIES, false);
+        // 允许单引号字段名
+        mapper.configure(JsonParser.Feature.ALLOW_SINGLE_QUOTES, true);
+        // 设置时间转换所使用的默认时区
+        mapper.setTimeZone(TimeZone.getDefault());
+        // null不生成到json字符串中
+        mapper.setSerializationInclusion(JsonInclude.Include.NON_NULL);
+        // 全局日期反序列化配置
+        SimpleModule module = new SimpleModule();
+        module.addDeserializer(java.util.Date.class, new DateDeserializer(String.class));
+        mapper.registerModule(module);
     }
 
     private  final Logger logger = LoggerFactory.getLogger(RelectExetor.class);
@@ -64,17 +74,7 @@ public class RelectExetor
             handleBean=clazz.newInstance();
         }
         Method[] methods=clazz.getDeclaredMethods();
-        for (Method method:methods)
-        {
-            if(methodName.equals(method.getName()))
-            {
-                methodTime ++;
-                if(methodTime>1)
-                {
-                    break;
-                }
-            }
-        }
+        methodTime=isGenericsMethod(methods,methodName,methodTime);
         for (Method method:methods)
         {
             if(methodName.equals(method.getName()))
@@ -136,6 +136,35 @@ public class RelectExetor
         return methodresq;
     }
 
+    /**
+     * 判断同名方法计数器的值大于2为多态方法
+     * @param methods
+     * @param methodName
+     * @param methodTime
+     */
+    private int isGenericsMethod(Method[] methods, String methodName, int methodTime)
+    {
+        for (Method method:methods)
+        {
+            if(methodName.equals(method.getName()))
+            {
+                methodTime ++;
+                if(methodTime>1)
+                {
+                    break;
+                }
+            }
+        }
+        return methodTime;
+    }
+
+    /**
+     * 在多态中选出正确的方法
+     * @param method
+     * @param methodTime
+     * @param requestParamsTyes
+     * @return
+     */
     private boolean genericsHandler(Method method,int methodTime,String[] requestParamsTyes)
     {
         if(methodTime>1)
