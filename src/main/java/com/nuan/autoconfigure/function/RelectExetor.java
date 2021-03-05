@@ -7,7 +7,8 @@ import com.fasterxml.jackson.databind.DeserializationFeature;
 import com.fasterxml.jackson.databind.JavaType;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.module.SimpleModule;
-import com.nuan.autoconfigure.util.DateDeserializer;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
+import com.nuan.autoconfigure.util.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.util.StringUtils;
@@ -38,7 +39,12 @@ public class RelectExetor
         // 全局日期反序列化配置
         SimpleModule module = new SimpleModule();
         module.addDeserializer(java.util.Date.class, new DateDeserializer(String.class));
+        module.addDeserializer(java.sql.Timestamp.class,new TimestampDeserializer());
+        module.addSerializer(java.sql.Timestamp.class,new TimestampSerializer());
+        module.addDeserializer(java.sql.Date.class,new SqlDateDeserializer());
+        module.addSerializer(java.sql.Date.class,new SqlDateSerializer());
         mapper.registerModule(module);
+        mapper.registerModule(new JavaTimeModule());
     }
 
     private  final Logger logger = LoggerFactory.getLogger(RelectExetor.class);
