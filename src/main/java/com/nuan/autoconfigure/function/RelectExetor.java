@@ -51,10 +51,9 @@ public class RelectExetor
 
     public final static ObjectMapper mapper = new ObjectMapper();
 
-    public Object executer(String req,String methodStr) throws Exception
+    public Object executer(Map<String,Object> maps,String methodStr) throws Exception
     {
         Object methodresq=null;
-        Map<String,Object> maps=mapper.readValue(req, Map.class);
         String[] strs=null;
         String className=null;
         String methoddetail=null;

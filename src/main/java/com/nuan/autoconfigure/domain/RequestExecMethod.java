@@ -1,6 +1,7 @@
 package com.nuan.autoconfigure.domain;
 
 import java.io.Serializable;
+import java.util.Map;
 
 /**
  * @program: picketnow
@@ -12,7 +13,7 @@ public class RequestExecMethod implements Serializable
 {
     private String classMethod;
 
-    private String data;
+    private Map<String,Object> data;
 
     public String getClassMethod()
     {
@@ -24,12 +25,12 @@ public class RequestExecMethod implements Serializable
         this.classMethod = classMethod;
     }
 
-    public String getData()
+    public Map<String, Object> getData()
     {
         return data;
     }
 
-    public void setData(String data)
+    public void setData(Map<String, Object> data)
     {
         this.data = data;
     }
@@ -37,10 +38,9 @@ public class RequestExecMethod implements Serializable
     @Override
     public String toString()
     {
-        final StringBuffer sb = new StringBuffer("RequestExecMethod{");
-        sb.append("classMethod='").append(classMethod).append('\'');
-        sb.append(", data='").append(data).append('\'');
-        sb.append('}');
-        return sb.toString();
+        return "RequestExecMethod{" +
+                "classMethod='" + classMethod + '\'' +
+                ", data=" + data +
+                '}';
     }
 }
