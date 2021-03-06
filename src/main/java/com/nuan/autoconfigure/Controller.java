@@ -64,7 +64,7 @@ public class Controller
         {
             return true;
         }
-        String[] strs=request.getClassMethod().split("#");
+        String[] strs=request.getClassMethod().split(" ");
         if (strs.length<2)
         {
             return true;
