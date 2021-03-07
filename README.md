@@ -2,6 +2,14 @@
 一个集成了springboot自动配置的的java测试工具，可以测试业务中的每个方法.当做接口测试！
 
 ## **注意事项**
+```java
+请使用最新版本的maven依赖  
+ <dependency>
+    <groupId>com.nuan.ysnnuan</groupId>
+    <artifactId>picketnow-spring-boot-starter</artifactId>
+    <version>x.x.x</version>
+ </dependency>
+```
 1.不支持带有object的入参：包括map中和list已经自定义bean中带有的Object的对象入参
 
 2.不支持Class<?>类型入参
